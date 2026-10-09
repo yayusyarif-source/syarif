@@ -1,0 +1,955 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Analisis Ulangan Harian</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: lembar kerja guru. Tab mengikuti alur pengaturan, input, hasil. Hasil dibuka dengan ringkasan, rincian di bawahnya. */
+:root{
+  --bg:#eff2f7; --surface:#ffffff; --surface2:#f5f7fb;
+  --ink:#141b2d; --ink2:#444e68; --muted:#5f6a82;
+  --line:#d6dce9; --line2:#e7ebf3;
+  --accent:#2a45d6; --accent-ink:#ffffff; --accent-soft:#e6eafd;
+  --good:#0b7f58; --good-soft:#dcf3ea;
+  --warn:#9a5806; --warn-soft:#fbeed7;
+  --bad:#bf3329; --bad-soft:#fbe4e1;
+  --font-display:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-body:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1320; --surface:#161d2d; --surface2:#1c2438;
+    --ink:#e9edf7; --ink2:#b0b9cc; --muted:#8e99b0;
+    --line:#2b3550; --line2:#222b42;
+    --accent:#8da2ff; --accent-ink:#0e1320; --accent-soft:#222c5a;
+    --good:#46d0a0; --good-soft:#12362c;
+    --warn:#e8b25a; --warn-soft:#3a2d12;
+    --bad:#ff8479; --bad-soft:#40201e;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1320; --surface:#161d2d; --surface2:#1c2438;
+  --ink:#e9edf7; --ink2:#b0b9cc; --muted:#8e99b0;
+  --line:#2b3550; --line2:#222b42;
+  --accent:#8da2ff; --accent-ink:#0e1320; --accent-soft:#222c5a;
+  --good:#46d0a0; --good-soft:#12362c;
+  --warn:#e8b25a; --warn-soft:#3a2d12;
+  --bad:#ff8479; --bad-soft:#40201e;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:24px 56px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--font-display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:-0.01em}
+h1{font-size:clamp(1.7rem,4.6vw,2.4rem);line-height:1.1}
+h2{font-size:1.25rem;line-height:1.25}
+h3{font-size:1.02rem}
+p{margin:0}
+.eyebrow{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between;align-items:flex-end}
+header.top .lead{display:flex;flex-direction:column;gap:6px;min-width:0}
+.savestate{font-size:.8rem;color:var(--muted)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{background:none;border:0;border-bottom:3px solid transparent;color:var(--ink2);font:600 .95rem var(--font-body);padding:10px 16px;cursor:pointer;white-space:nowrap;margin-bottom:-1px}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.panel > header{display:flex;flex-direction:column;gap:4px}
+.panel > header p{color:var(--ink2);font-size:.9rem}
+.stack{display:flex;flex-direction:column;gap:20px}
+section[hidden],div[hidden]{display:none!important}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px 16px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label,.field .lbl{font-size:.82rem;font-weight:600;color:var(--ink2)}
+.field .hint{font-size:.78rem;color:var(--muted)}
+input[type=text],input[type=number],select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
+input[type=text]:hover,input[type=number]:hover,textarea:hover,select:hover{border-color:var(--muted)}
+textarea{font-family:var(--font-mono);font-size:.82rem;min-height:120px;resize:vertical}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:8px 14px;font-size:.88rem;font-weight:600;color:var(--ink2);cursor:pointer;background:var(--surface)}
+.seg input:checked + label{background:var(--accent);color:var(--accent-ink)}
+.seg input:focus-visible + label{outline:2px solid var(--accent);outline-offset:-3px}
+
+.btn{font:600 .9rem var(--font-body);border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px;cursor:pointer}
+.btn:hover{border-color:var(--muted);background:var(--surface2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.danger.armed{background:var(--bad);color:var(--surface)}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px}
+
+.note{background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:10px 14px;font-size:.88rem;color:var(--ink2)}
+.note.sample{background:var(--warn-soft);border-color:transparent;color:var(--ink);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+details.help{border:1px solid var(--line2);border-radius:8px;background:var(--surface2)}
+details.help summary{cursor:pointer;padding:10px 14px;font-weight:600;font-size:.9rem}
+details.help .body{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;font-size:.88rem;color:var(--ink2)}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:8px 10px;text-align:center;border-bottom:1px solid var(--line2);white-space:nowrap}
+th{background:var(--surface2);color:var(--ink2);font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--line)}
+td.left,th.left{text-align:left}
+td.wrapcell{white-space:normal;min-width:220px;text-align:left}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface2)}
+.inputtable .stick1,.inputtable .stick2{position:sticky;background:var(--surface);z-index:1}
+.inputtable th.stick1,.inputtable th.stick2{background:var(--surface2)}
+.inputtable .stick1{left:0;min-width:40px}
+.inputtable .stick2{left:40px;min-width:170px}
+.inputtable tbody tr:hover td.stick1,.inputtable tbody tr:hover td.stick2{background:var(--surface2)}
+.inputtable td input.nm{min-width:150px}
+.cell{width:34px;height:34px;border-radius:6px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);font:500 .9rem var(--font-mono);cursor:pointer;padding:0}
+.cell.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.sc,.mx{width:64px!important;text-align:center;padding:6px!important;font-family:var(--font-mono)}
+.maxrow th{background:var(--surface)}
+td.tot,td.nil{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+td.nil.low{color:var(--bad);font-weight:600}
+.del{background:none;border:0;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:4px 8px;border-radius:6px}
+.del:hover{color:var(--bad);background:var(--bad-soft)}
+
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.74rem;font-weight:600;white-space:nowrap}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.info{background:var(--accent-soft);color:var(--accent)}
+
+.summary{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px}
+.big{font-family:var(--font-display);font-weight:700;font-size:clamp(3.2rem,10vw,4.6rem);line-height:1;letter-spacing:-0.03em}
+.big .unit{font-size:.5em;color:var(--muted);margin-left:2px}
+.split{display:flex;gap:2px;height:14px;border-radius:7px;overflow:hidden;background:var(--line2)}
+.split .seg-good{background:var(--good)}
+.split .seg-bad{background:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.84rem;color:var(--ink2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+.legend .g{background:var(--good)}.legend .b{background:var(--bad)}
+dl.stats{display:grid;grid-template-columns:1fr auto;gap:0;margin:0;align-self:center}
+dl.stats dt,dl.stats dd{padding:7px 0;border-bottom:1px solid var(--line2);margin:0}
+dl.stats dt{color:var(--ink2);font-size:.9rem}
+dl.stats dd{font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;font-weight:500}
+dl.stats dt:last-of-type,dl.stats dd:last-of-type{border-bottom:0}
+.ctx{color:var(--ink2);font-size:.9rem}
+
+.chartbox{position:relative;overflow-x:auto}
+.chartbox svg{display:block;width:100%;min-width:480px;height:auto}
+.chartbox text{font-family:var(--font-mono);font-size:11px;fill:var(--muted)}
+.chartbox .cnt{fill:var(--ink2);font-weight:500}
+.chartbox .kk{fill:var(--ink2);font-family:var(--font-body);font-weight:600;font-size:12px}
+.chartbox .grid-l{stroke:var(--line2);stroke-width:1}
+.chartbox .base{stroke:var(--line);stroke-width:1}
+.chartbox .kkline{stroke:var(--ink2);stroke-width:1.5;stroke-dasharray:4 4}
+.chartbox .b-good{fill:var(--good)}
+.chartbox .b-bad{fill:var(--bad)}
+.tip{position:absolute;z-index:5;pointer-events:none;background:var(--ink);color:var(--surface);font-size:.8rem;padding:6px 10px;border-radius:6px;line-height:1.4;white-space:nowrap}
+
+.pbar{display:inline-flex;align-items:center;gap:8px}
+.pbar .track{width:76px;height:8px;border-radius:4px;background:var(--line2);overflow:hidden}
+.pbar .fill{height:100%;border-radius:4px}
+.pbar .fill.good{background:var(--good)}.pbar .fill.bad{background:var(--bad)}.pbar .fill.info{background:var(--accent)}
+
+ul.recs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+ul.recs li{display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;align-items:start;padding:12px 0;border-bottom:1px solid var(--line2)}
+ul.recs li:last-child{border-bottom:0}
+ul.recs .pill{justify-self:start}
+ul.recs strong{font-weight:600}
+
+.empty{padding:28px 16px;text-align:center;color:var(--ink2)}
+.copyfallback{display:flex;flex-direction:column;gap:6px}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
+.tiny{font-size:.82rem;color:var(--muted)}
+
+@media (max-width:720px){
+  .summary{grid-template-columns:minmax(0,1fr)}
+  ul.recs li{grid-template-columns:minmax(0,1fr);gap:6px}
+  .panel{padding:16px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="lead">
+      <div class="eyebrow">Kurikulum Merdeka</div>
+      <h1>Analisis Ulangan Harian</h1>
+      <p class="ctx">Ketuntasan berdasarkan KKTP, tingkat kesukaran, dan daya pembeda tiap soal.</p>
+    </div>
+    <p class="savestate" id="saveState" aria-live="polite">Data tersimpan otomatis di browser ini.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Langkah analisis">
+    <button class="tab" role="tab" id="t-setup" data-tab="setup" aria-selected="false" aria-controls="p-setup">Pengaturan</button>
+    <button class="tab" role="tab" id="t-input" data-tab="input" aria-selected="false" aria-controls="p-input">Input nilai</button>
+    <button class="tab" role="tab" id="t-hasil" data-tab="hasil" aria-selected="false" aria-controls="p-hasil">Hasil analisis</button>
+  </div>
+
+  <!-- PENGATURAN -->
+  <section id="p-setup" class="stack" role="tabpanel" aria-labelledby="t-setup" hidden>
+    <div class="panel">
+      <header><h2>Informasi ulangan</h2><p>Dipakai sebagai judul pada hasil analisis.</p></header>
+      <div class="grid">
+        <div class="field"><label for="f-mapel">Mata pelajaran</label><input type="text" id="f-mapel" autocomplete="off"></div>
+        <div class="field"><label for="f-kelas">Kelas</label><input type="text" id="f-kelas" autocomplete="off"></div>
+        <div class="field"><label for="f-guru">Nama guru</label><input type="text" id="f-guru" autocomplete="off"></div>
+        <div class="field"><label for="f-materi">Materi atau bab</label><input type="text" id="f-materi" autocomplete="off"></div>
+        <div class="field"><label for="f-tanggal">Tanggal ulangan</label><input type="text" id="f-tanggal" autocomplete="off"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <header><h2>Penilaian</h2><p>Siswa tuntas bila nilainya mencapai KKTP atau lebih.</p></header>
+      <div class="grid">
+        <div class="field">
+          <label for="f-kktp">KKTP (0 sampai 100)</label>
+          <input type="number" id="f-kktp" min="0" max="100" step="1" inputmode="numeric">
+          <span class="hint">Kriteria Ketercapaian Tujuan Pembelajaran yang ditetapkan sekolah.</span>
+        </div>
+        <div class="field">
+          <label for="f-soal">Jumlah soal</label>
+          <input type="number" id="f-soal" min="1" max="60" step="1" inputmode="numeric">
+          <span class="hint">Mengubah jumlah soal tidak menghapus nilai yang sudah diisi.</span>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl" id="lbl-mode">Cara mengisi nilai</span>
+        <div class="seg" role="radiogroup" aria-labelledby="lbl-mode">
+          <input type="radio" name="mode" id="m-bs" value="bs"><label for="m-bs">Benar atau salah</label>
+          <input type="radio" name="mode" id="m-skor" value="skor"><label for="m-skor">Skor per soal</label>
+        </div>
+        <span class="hint" id="modeHint"></span>
+      </div>
+      <details class="help">
+        <summary>Cara membaca tingkat kesukaran dan daya pembeda</summary>
+        <div class="body">
+          <p><strong>Tingkat kesukaran (P)</strong> adalah rata-rata skor soal dibagi skor maksimumnya. Kurang dari 0,30 berarti sulit, 0,30 sampai 0,70 sedang, di atas 0,70 mudah.</p>
+          <p><strong>Daya pembeda (D)</strong> membandingkan 27% siswa dengan total skor tertinggi dan 27% terendah. D = (rata-rata kelompok atas − rata-rata kelompok bawah) ÷ skor maksimum. Mulai 0,40 sangat baik, 0,30 sampai 0,39 baik, 0,20 sampai 0,29 cukup, di bawah 0,20 perlu direvisi. Nilai negatif berarti siswa yang pandai justru lebih sering salah, jadi periksa kunci jawaban. D baru dihitung bila siswa minimal 6 orang.</p>
+        </div>
+      </details>
+      <div class="btn-row"><button class="btn primary" type="button" data-go="input">Lanjut ke input nilai</button></div>
+    </div>
+  </section>
+
+  <!-- INPUT -->
+  <section id="p-input" class="stack" role="tabpanel" aria-labelledby="t-input" hidden>
+    <div class="note sample" id="sampleBanner" hidden>
+      <span>Yang tampil sekarang adalah data contoh. Kosongkan untuk mulai dengan data kelasmu.</span>
+      <button class="btn" type="button" id="btnClearSample">Kosongkan data contoh</button>
+    </div>
+    <div class="panel">
+      <header>
+        <h2>Nilai siswa</h2>
+        <p id="inputHelp"></p>
+      </header>
+      <div class="toolbar">
+        <div class="btn-row">
+          <button class="btn primary" type="button" id="btnAdd">Tambah siswa</button>
+          <button class="btn" type="button" id="btnAdd5">Tambah 5 siswa</button>
+          <button class="btn danger" type="button" id="btnClearAll">Hapus semua siswa</button>
+        </div>
+        <button class="btn primary" type="button" data-go="hasil">Lihat hasil analisis</button>
+      </div>
+      <div class="tablewrap">
+        <table class="inputtable">
+          <thead id="theadInput"></thead>
+          <tbody id="tbodyInput"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <header>
+        <h2>Impor dari Excel atau CSV</h2>
+        <p>Tempel baris dari Excel atau pilih berkas CSV. Kolom pertama berisi nama, kolom berikutnya berisi nilai tiap soal. Baris judul akan dikenali otomatis.</p>
+      </header>
+      <div class="field">
+        <label for="impText">Data tempelan</label>
+        <textarea id="impText" spellcheck="false" placeholder="Siswa A&#9;1&#9;0&#9;1&#9;1&#9;0&#10;Siswa B&#9;1&#9;1&#9;1&#9;0&#9;1"></textarea>
+      </div>
+      <div class="field">
+        <label for="impFile">Atau pilih berkas</label>
+        <input type="file" id="impFile" accept=".csv,.tsv,.txt,text/csv,text/plain">
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" type="button" id="btnImpAdd">Tambahkan ke tabel</button>
+        <button class="btn" type="button" id="btnImpReplace">Ganti seluruh data</button>
+      </div>
+      <p class="tiny" id="impMsg" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- HASIL -->
+  <section id="p-hasil" class="stack" role="tabpanel" aria-labelledby="t-hasil" hidden>
+    <div class="panel empty" id="hasilEmpty" hidden>
+      <h2>Belum ada data siswa</h2>
+      <p>Tambahkan siswa dan nilainya di tab Input nilai, lalu kembali ke sini.</p>
+      <div class="btn-row" style="justify-content:center"><button class="btn primary" type="button" data-go="input">Ke input nilai</button></div>
+    </div>
+
+    <div class="stack" id="hasilBody">
+      <p class="ctx" id="hasilCtx"></p>
+
+      <div class="panel summary" id="summary"></div>
+
+      <div class="panel">
+        <header>
+          <h2>Sebaran nilai</h2>
+          <p>Jumlah siswa pada tiap rentang 10 poin. Garis putus-putus menandai KKTP.</p>
+        </header>
+        <div class="legend"><span><i class="g"></i>Tuntas (nilai ≥ KKTP)</span><span><i class="b"></i>Belum tuntas</span></div>
+        <div class="chartbox" id="histWrap"></div>
+        <details class="help">
+          <summary>Lihat sebagai tabel</summary>
+          <div class="body"><div class="tablewrap"><table id="histTable"></table></div></div>
+        </details>
+      </div>
+
+      <div class="panel">
+        <header>
+          <h2>Analisis butir soal</h2>
+          <p id="itemHelp"></p>
+        </header>
+        <div class="tablewrap">
+          <table>
+            <thead><tr>
+              <th>Soal</th><th>Rata-rata skor</th><th>Tingkat kesukaran (P)</th><th>Kategori</th><th>Daya pembeda (D)</th><th>Kategori</th><th class="left">Tindak lanjut</th>
+            </tr></thead>
+            <tbody id="tbodyItems"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <header><h2>Rekomendasi tindak lanjut</h2></header>
+        <ul class="recs" id="recs"></ul>
+      </div>
+
+      <div class="panel">
+        <header>
+          <h2>Rincian per siswa</h2>
+        </header>
+        <div class="toolbar">
+          <div class="field" style="max-width:240px;width:100%">
+            <label for="sortSel">Urutkan</label>
+            <select id="sortSel">
+              <option value="input">Urutan input</option>
+              <option value="desc">Nilai tertinggi</option>
+              <option value="asc">Nilai terendah</option>
+              <option value="nama">Nama A sampai Z</option>
+            </select>
+          </div>
+          <div class="btn-row">
+            <button class="btn" type="button" id="btnCopySiswa">Salin tabel siswa</button>
+            <button class="btn" type="button" id="btnCopyItems">Salin analisis soal</button>
+          </div>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>No</th><th class="left">Nama siswa</th><th id="thSkor">Benar</th><th>Nilai</th><th>Status</th><th class="left">Soal yang belum benar penuh</th></tr></thead>
+            <tbody id="tbodySiswa"></tbody>
+          </table>
+        </div>
+        <div class="copyfallback" id="copyFallback" hidden>
+          <label class="tiny" for="copyArea">Salin manual dengan Ctrl+C (atau tekan lama di ponsel), lalu tempel ke Excel.</label>
+          <textarea id="copyArea" readonly></textarea>
+        </div>
+        <p class="tiny" id="copyMsg" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/*PURE-START*/
+function clamp(v,mx){v=Number(v);if(!isFinite(v)||v<0)v=0;return v>mx?mx:v}
+function avg(a){return a.length?a.reduce(function(x,y){return x+y},0)/a.length:0}
+
+function calcFor(S){
+  var n=S.siswa.length,m=S.soal.length;
+  var maxTotal=S.soal.reduce(function(a,q){return a+q.max},0);
+  var kktp=Number(S.info.kktp);if(!isFinite(kktp))kktp=0;
+  var rows=S.siswa.map(function(s,i){
+    var sk=S.soal.map(function(q,j){return clamp(s.skor[j],q.max)});
+    var total=sk.reduce(function(a,b){return a+b},0);
+    var nilai=maxTotal>0?Math.round(total/maxTotal*1000)/10:0;
+    return {i:i,nama:s.nama,sk:sk,total:total,nilai:nilai,tuntas:nilai>=kktp};
+  });
+  var items=S.soal.map(function(q,j){
+    var mean=avg(rows.map(function(r){return r.sk[j]}));
+    var P=q.max>0?mean/q.max:0;
+    var full=rows.filter(function(r){return r.sk[j]>=q.max}).length;
+    return {no:j+1,max:q.max,mean:mean,P:P,D:null,full:full};
+  });
+  var k=0;
+  if(n>=6){
+    var order=rows.slice().sort(function(a,b){return b.total-a.total});
+    k=Math.max(2,Math.round(n*0.27));
+    var upper=order.slice(0,k),lower=order.slice(n-k);
+    items.forEach(function(it,j){
+      var mu=avg(upper.map(function(r){return r.sk[j]}));
+      var ml=avg(lower.map(function(r){return r.sk[j]}));
+      it.D=it.max>0?(mu-ml)/it.max:0;
+    });
+  }
+  var nil=rows.map(function(r){return r.nilai}).sort(function(a,b){return a-b});
+  var mean=avg(nil);
+  var median=n?(n%2?nil[(n-1)/2]:(nil[n/2-1]+nil[n/2])/2):0;
+  var sd=n?Math.sqrt(avg(nil.map(function(x){return (x-mean)*(x-mean)}))):0;
+  var tuntas=rows.filter(function(r){return r.tuntas}).length;
+  var bins=[];
+  for(var b=0;b<10;b++)bins.push({lo:b*10,hi:b===9?100:b*10+9,tuntas:0,belum:0,total:0});
+  rows.forEach(function(r){
+    var bi=Math.min(9,Math.floor(r.nilai/10));
+    bins[bi].total++;
+    if(r.tuntas)bins[bi].tuntas++;else bins[bi].belum++;
+  });
+  return {n:n,m:m,maxTotal:maxTotal,kktp:kktp,rows:rows,items:items,groupK:k,bins:bins,
+    stats:{mean:mean,median:median,sd:sd,max:n?nil[n-1]:0,min:n?nil[0]:0,tuntas:tuntas,belum:n-tuntas,pct:n?tuntas/n*100:0}};
+}
+
+function parseData(text){
+  var lines=String(text).replace(/\r/g,"").split("\n").filter(function(l){return l.trim()!==""});
+  if(!lines.length)return [];
+  var first=lines[0];
+  var delim=first.indexOf("\t")>=0?"\t":(first.indexOf(";")>=0?";":",");
+  var rows=lines.map(function(l){return l.split(delim).map(function(c){return c.trim().replace(/^"|"$/g,"")})});
+  var hasHeader=rows[0].slice(1).some(function(c){return c!==""&&isNaN(parseFloat(c.replace(",",".")))});
+  if(hasHeader)rows.shift();
+  var numeric=function(c){return c!==""&&!isNaN(Number(String(c).replace(",",".")))};
+  if(rows.length&&rows.every(function(r){return r.length>2&&numeric(r[0])&&r[1]!==""&&!numeric(r[1])}))
+    rows=rows.map(function(r){return r.slice(1)});
+  return rows.map(function(r){
+    return {nama:r[0]||"",skor:r.slice(1).map(function(c){var v=parseFloat(String(c).replace(",","."));return isFinite(v)&&v>0?v:0})};
+  });
+}
+/*PURE-END*/
+
+(function(){
+"use strict";
+var KEY="analisis-ulangan-harian-v1";
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function fmt(x,d){if(x===null||x===undefined||!isFinite(x))return "–";return Number(x).toLocaleString("id-ID",{minimumFractionDigits:d,maximumFractionDigits:d})}
+function todayId(){try{return new Date().toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"})}catch(e){return ""}}
+
+/* ---------- state ---------- */
+var S=null,current="hasil";
+
+function sampleState(){
+  var seed=7;
+  function rnd(){seed=(seed*1664525+1013904223)%4294967296;return seed/4294967296}
+  var names=["Siswa A","Siswa B","Siswa C","Siswa D","Siswa E","Siswa F","Siswa G","Siswa H","Siswa I","Siswa J","Siswa K","Siswa L"];
+  var b=[-1.8,-1.4,-1.0,-0.6,-0.2,0.1,0.4,0.8,1.3,2.1];
+  var siswa=names.map(function(nm,i){
+    var theta=-1.7+i*0.3+(rnd()-0.5)*0.6;
+    var skor=b.map(function(bj,j){
+      if(j===7)return rnd()<0.5?1:0;
+      var p=1/(1+Math.exp(-(theta-bj)*1.4));
+      return rnd()<p?1:0;
+    });
+    return {nama:nm,skor:skor};
+  });
+  return {
+    info:{mapel:"Informatika",kelas:"VII",guru:"Syarifuddin, S.Pd., M.Si.",materi:"Jaringan Komputer dan Internet",tanggal:todayId(),kktp:75},
+    mode:"bs",
+    soal:b.map(function(){return {max:1}}),
+    siswa:siswa,
+    sample:true
+  };
+}
+
+function validState(o){
+  return o&&typeof o==="object"&&o.info&&Array.isArray(o.soal)&&Array.isArray(o.siswa)&&o.soal.length>0&&
+    o.soal.every(function(q){return q&&isFinite(q.max)&&q.max>0})&&
+    o.siswa.every(function(s){return s&&Array.isArray(s.skor)});
+}
+function load(){
+  try{
+    var raw=localStorage.getItem(KEY);
+    if(raw){var o=JSON.parse(raw);if(validState(o)){
+      o.mode=o.mode==="skor"?"skor":"bs";
+      o.info.kktp=isFinite(o.info.kktp)?Number(o.info.kktp):75;
+      return o;
+    }}
+  }catch(e){}
+  return null;
+}
+var saveTimer=null,saveWarned=false;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){
+    try{localStorage.setItem(KEY,JSON.stringify(S));$("saveState").textContent="Tersimpan otomatis di browser ini."}
+    catch(e){if(!saveWarned){saveWarned=true;$("saveState").textContent="Penyimpanan otomatis tidak tersedia di browser ini. Salin hasil sebelum menutup halaman."}}
+  },250);
+}
+
+/* ---------- structure helpers ---------- */
+function resizeSoal(m){
+  m=Math.max(1,Math.min(60,m|0));
+  while(S.soal.length<m)S.soal.push({max:S.mode==="bs"?1:10});
+  S.soal.length=m;
+  S.siswa.forEach(function(s){while(s.skor.length<m)s.skor.push(0);s.skor.length=m});
+}
+function setMode(mode){
+  if(mode===S.mode)return;
+  if(mode==="skor"){
+    S.mode="skor";
+    S.soal.forEach(function(q){if(q.max===1)q.max=10});
+  }else{
+    S.mode="bs";
+    S.siswa.forEach(function(s,i){s.skor=s.skor.map(function(v,j){return v>=S.soal[j].max?1:0})});
+    S.soal.forEach(function(q){q.max=1});
+  }
+}
+function newSiswa(){return {nama:"",skor:S.soal.map(function(){return 0})}}
+
+/* ---------- setup tab ---------- */
+function fillSetup(){
+  var f=S.info;
+  $("f-mapel").value=f.mapel||"";$("f-kelas").value=f.kelas||"";$("f-guru").value=f.guru||"";
+  $("f-materi").value=f.materi||"";$("f-tanggal").value=f.tanggal||"";
+  $("f-kktp").value=f.kktp;$("f-soal").value=S.soal.length;
+  $("m-bs").checked=S.mode==="bs";$("m-skor").checked=S.mode==="skor";
+  modeTexts();
+}
+function modeTexts(){
+  var bs=S.mode==="bs";
+  $("modeHint").textContent=bs
+    ?"Tiap soal bernilai 1. Klik kotak soal untuk menandai jawaban benar."
+    :"Isi skor tiap soal. Skor maksimum tiap soal diatur pada baris di bawah judul tabel. Cocok untuk soal uraian.";
+  $("inputHelp").textContent=bs
+    ?"Klik kotak untuk mengubah 0 (salah) menjadi 1 (benar). Nilai dihitung otomatis."
+    :"Isi skor yang diperoleh siswa pada tiap soal. Skor maksimum tiap soal diatur pada baris Skor maksimum.";
+  $("thSkor").textContent=bs?"Benar":"Skor";
+}
+["mapel","kelas","guru","materi","tanggal"].forEach(function(k){
+  $("f-"+k).addEventListener("input",function(e){S.info[k]=e.target.value;save()});
+});
+$("f-kktp").addEventListener("input",function(e){
+  var v=parseFloat(e.target.value);
+  if(isFinite(v)){S.info.kktp=Math.max(0,Math.min(100,v));updateAllRows();save()}
+});
+$("f-kktp").addEventListener("change",function(e){e.target.value=S.info.kktp});
+$("f-soal").addEventListener("change",function(e){
+  var v=parseInt(e.target.value,10);
+  if(!isFinite(v))v=S.soal.length;
+  v=Math.max(1,Math.min(60,v));
+  e.target.value=v;
+  resizeSoal(v);renderInput();save();
+});
+document.querySelectorAll('input[name="mode"]').forEach(function(r){
+  r.addEventListener("change",function(){if(r.checked){setMode(r.value);modeTexts();renderInput();save()}});
+});
+
+/* ---------- input tab ---------- */
+function rowStats(s){
+  var total=0,mx=0;
+  S.soal.forEach(function(q,j){total+=clamp(s.skor[j],q.max);mx+=q.max});
+  return {total:total,nilai:mx>0?Math.round(total/mx*1000)/10:0};
+}
+function rowHTML(s,i){
+  var bs=S.mode==="bs",h="<tr data-i=\""+i+"\"><td class=\"stick1\">"+(i+1)+"</td>";
+  h+="<td class=\"stick2 left\"><input type=\"text\" class=\"nm\" data-i=\""+i+"\" value=\""+esc(s.nama)+"\" placeholder=\"Nama siswa\" aria-label=\"Nama siswa nomor "+(i+1)+"\" autocomplete=\"off\"></td>";
+  S.soal.forEach(function(q,j){
+    var v=clamp(s.skor[j],q.max);
+    if(bs){
+      h+="<td><button type=\"button\" class=\"cell"+(v>=1?" on":"")+"\" data-i=\""+i+"\" data-j=\""+j+"\" aria-pressed=\""+(v>=1)+"\" aria-label=\"Siswa "+(i+1)+", soal "+(j+1)+"\">"+(v>=1?"1":"0")+"</button></td>";
+    }else{
+      h+="<td><input type=\"number\" class=\"sc\" inputmode=\"decimal\" min=\"0\" max=\""+q.max+"\" step=\"any\" value=\""+v+"\" data-i=\""+i+"\" data-j=\""+j+"\" aria-label=\"Siswa "+(i+1)+", skor soal "+(j+1)+"\"></td>";
+    }
+  });
+  var st=rowStats(s);
+  h+="<td class=\"tot\">"+fmt(st.total,bs?0:1)+"</td><td class=\"nil"+(st.nilai<S.info.kktp?" low":"")+"\">"+fmt(st.nilai,bs?0:1)+"</td>";
+  h+="<td><button type=\"button\" class=\"del\" data-i=\""+i+"\" aria-label=\"Hapus siswa nomor "+(i+1)+"\">×</button></td></tr>";
+  return h;
+}
+function renderInput(){
+  var bs=S.mode==="bs",m=S.soal.length;
+  var h="<tr><th class=\"stick1\">No</th><th class=\"stick2 left\">Nama siswa</th>";
+  for(var j=0;j<m;j++)h+="<th>S"+(j+1)+"</th>";
+  h+="<th>"+(bs?"Benar":"Skor")+"</th><th>Nilai</th><th><span class=\"sr\">Hapus</span></th></tr>";
+  if(!bs){
+    h+="<tr class=\"maxrow\"><th class=\"stick1\"></th><th class=\"stick2 left\">Skor maksimum</th>";
+    S.soal.forEach(function(q,j){
+      h+="<th><input type=\"number\" class=\"mx\" min=\"0.5\" step=\"any\" value=\""+q.max+"\" data-j=\""+j+"\" aria-label=\"Skor maksimum soal "+(j+1)+"\"></th>";
+    });
+    h+="<th id=\"maxTotalCell\" class=\"mono\">"+fmt(S.soal.reduce(function(a,q){return a+q.max},0),1)+"</th><th class=\"mono\">100</th><th></th></tr>";
+  }
+  $("theadInput").innerHTML=h;
+  var body=S.siswa.map(rowHTML).join("");
+  if(!S.siswa.length)body="<tr><td colspan=\""+(m+5)+"\" class=\"empty\">Belum ada siswa. Klik Tambah siswa atau impor dari Excel.</td></tr>";
+  $("tbodyInput").innerHTML=body;
+  $("sampleBanner").hidden=!S.sample;
+}
+function updateRow(i){
+  var tr=$("tbodyInput").querySelector("tr[data-i=\""+i+"\"]");if(!tr)return;
+  var st=rowStats(S.siswa[i]),bs=S.mode==="bs";
+  tr.querySelector(".tot").textContent=fmt(st.total,bs?0:1);
+  var nl=tr.querySelector(".nil");nl.textContent=fmt(st.nilai,bs?0:1);
+  nl.classList.toggle("low",st.nilai<S.info.kktp);
+}
+function updateAllRows(){for(var i=0;i<S.siswa.length;i++)updateRow(i)}
+
+$("tbodyInput").addEventListener("click",function(e){
+  var c=e.target.closest(".cell");
+  if(c){
+    var i=+c.dataset.i,j=+c.dataset.j,on=!(S.siswa[i].skor[j]>=1);
+    S.siswa[i].skor[j]=on?1:0;
+    c.classList.toggle("on",on);c.setAttribute("aria-pressed",String(on));c.textContent=on?"1":"0";
+    updateRow(i);save();return;
+  }
+  var d=e.target.closest(".del");
+  if(d){S.siswa.splice(+d.dataset.i,1);renderInput();save()}
+});
+$("tbodyInput").addEventListener("input",function(e){
+  var t=e.target,i=+t.dataset.i;
+  if(t.classList.contains("nm")){S.siswa[i].nama=t.value;save()}
+  else if(t.classList.contains("sc")){
+    var v=parseFloat(String(t.value).replace(",","."));
+    S.siswa[i].skor[+t.dataset.j]=isFinite(v)&&v>0?v:0;
+    updateRow(i);save();
+  }
+});
+$("tbodyInput").addEventListener("change",function(e){
+  var t=e.target;
+  if(t.classList.contains("sc")){
+    var i=+t.dataset.i,j=+t.dataset.j,v=clamp(S.siswa[i].skor[j],S.soal[j].max);
+    S.siswa[i].skor[j]=v;t.value=v;updateRow(i);save();
+  }
+});
+$("theadInput").addEventListener("input",function(e){
+  var t=e.target;
+  if(t.classList.contains("mx")){
+    var v=parseFloat(String(t.value).replace(",","."));
+    if(isFinite(v)&&v>0){
+      S.soal[+t.dataset.j].max=v;
+      var cell=$("maxTotalCell");if(cell)cell.textContent=fmt(S.soal.reduce(function(a,q){return a+q.max},0),1);
+      updateAllRows();save();
+    }
+  }
+});
+function addSiswa(k){
+  for(var x=0;x<k;x++)S.siswa.push(newSiswa());
+  renderInput();save();
+  var inputs=$("tbodyInput").querySelectorAll("input.nm");
+  var target=inputs[inputs.length-k];
+  if(target)target.focus();
+}
+$("btnAdd").addEventListener("click",function(){addSiswa(1)});
+$("btnAdd5").addEventListener("click",function(){addSiswa(5)});
+
+/* two-step confirm (dialog bawaan browser tidak tampil di artifact) */
+function armButton(btn,label,action){
+  var armed=false,timer=null,orig=btn.textContent;
+  btn.addEventListener("click",function(){
+    if(!armed){
+      armed=true;btn.textContent=label;btn.classList.add("armed");
+      timer=setTimeout(function(){armed=false;btn.textContent=orig;btn.classList.remove("armed")},3500);
+    }else{
+      clearTimeout(timer);armed=false;btn.textContent=orig;btn.classList.remove("armed");action();
+    }
+  });
+}
+function clearAll(){
+  S.siswa=[newSiswa()];S.sample=false;renderInput();save();
+}
+armButton($("btnClearAll"),"Klik lagi untuk menghapus",clearAll);
+$("btnClearSample").addEventListener("click",clearAll);
+
+/* ---------- impor ---------- */
+function importRows(rows,replace){
+  var msg=$("impMsg");
+  if(!rows.length){msg.textContent="Tidak ada data yang bisa dibaca. Pastikan tiap baris berisi nama lalu nilai soal.";return}
+  var cols=rows.reduce(function(a,r){return Math.max(a,r.skor.length)},0);
+  if(cols<1){msg.textContent="Tidak ditemukan kolom nilai soal setelah kolom nama.";return}
+  cols=Math.min(cols,60);
+  var big=false;
+  rows.forEach(function(r){r.skor=r.skor.slice(0,cols);r.skor.forEach(function(v){if(v>1)big=true})});
+  if(replace){S.siswa=[];S.sample=false}
+  if(S.sample){S.siswa=[];S.sample=false}
+  resizeSoal(cols);
+  if(big&&S.mode==="bs"){S.mode="skor";S.soal.forEach(function(q){q.max=1})}
+  if(S.mode==="skor"){
+    S.soal.forEach(function(q,j){
+      var mx=rows.reduce(function(a,r){return Math.max(a,r.skor[j]||0)},0);
+      if(q.max===10&&!big){q.max=Math.max(1,mx)}
+      q.max=Math.max(q.max,mx,1);
+    });
+  }
+  var start=S.siswa.length;
+  rows.forEach(function(r,k){
+    var sk=[];for(var j=0;j<cols;j++)sk.push(r.skor[j]||0);
+    if(S.mode==="bs")sk=sk.map(function(v){return v>=1?1:0});
+    S.siswa.push({nama:r.nama||"Siswa "+(start+k+1),skor:sk});
+  });
+  fillSetup();renderInput();save();
+  msg.textContent=rows.length+" siswa diimpor dengan "+cols+" soal."+(S.mode==="skor"?" Periksa skor maksimum tiap soal pada baris Skor maksimum.":"");
+}
+$("btnImpAdd").addEventListener("click",function(){importRows(parseData($("impText").value),false)});
+$("btnImpReplace").addEventListener("click",function(){importRows(parseData($("impText").value),true)});
+$("impFile").addEventListener("change",function(e){
+  var f=e.target.files&&e.target.files[0];if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(){$("impText").value=String(rd.result);$("impMsg").textContent="Berkas \""+f.name+"\" dimuat. Pilih Tambahkan ke tabel atau Ganti seluruh data."};
+  rd.onerror=function(){$("impMsg").textContent="Berkas tidak bisa dibaca."};
+  rd.readAsText(f);
+});
+
+/* ---------- kategori ---------- */
+function katP(P){if(P<0.30)return {t:"Sulit",c:"bad"};if(P<=0.70)return {t:"Sedang",c:"good"};return {t:"Mudah",c:"info"}}
+function katD(D){
+  if(D===null)return {t:"Butuh ≥ 6 siswa",c:"info"};
+  if(D>=0.40)return {t:"Sangat baik",c:"good"};
+  if(D>=0.30)return {t:"Baik",c:"good"};
+  if(D>=0.20)return {t:"Cukup",c:"warn"};
+  if(D>=0)return {t:"Rendah",c:"bad"};
+  return {t:"Negatif",c:"bad"};
+}
+function tindak(it){
+  if(it.D!==null&&it.D<0)return "Periksa kunci jawaban dan redaksi soal.";
+  if(it.D!==null&&it.D<0.20)return "Revisi atau ganti soal ini.";
+  if(it.P<0.30)return "Soal membedakan siswa, tetapi materinya perlu dibahas ulang.";
+  if(it.P>0.90)return "Hampir semua siswa benar. Cukup sebagai soal pemanasan.";
+  return "Pertahankan.";
+}
+
+/* ---------- hasil ---------- */
+function nomorList(arr,cap){
+  if(!arr.length)return "–";
+  var s=arr.slice(0,cap).join(", ");
+  return arr.length>cap?s+" dan "+(arr.length-cap)+" lainnya":s;
+}
+function renderResults(){
+  var a=calcFor(S);
+  $("hasilEmpty").hidden=a.n>0;
+  $("hasilBody").hidden=a.n===0;
+  if(a.n===0)return;
+  var f=S.info,bs=S.mode==="bs";
+  var ctx=[f.mapel,f.kelas?"Kelas "+f.kelas:"",f.materi,f.tanggal,f.guru?"Guru: "+f.guru:""].filter(Boolean).map(esc).join(" · ");
+  $("hasilCtx").innerHTML=ctx;
+
+  var st=a.stats,pct=st.pct;
+  $("summary").innerHTML=
+    "<div style=\"display:flex;flex-direction:column;gap:12px;min-width:0\">"+
+      "<div class=\"eyebrow\">Ketuntasan klasikal</div>"+
+      "<div class=\"big\">"+fmt(pct,pct%1===0?0:1)+"<span class=\"unit\">%</span></div>"+
+      "<div class=\"split\" role=\"img\" aria-label=\""+st.tuntas+" siswa tuntas, "+st.belum+" belum tuntas\">"+
+        (st.tuntas?"<span class=\"seg-good\" style=\"width:"+(st.tuntas/a.n*100)+"%\"></span>":"")+
+        (st.belum?"<span class=\"seg-bad\" style=\"width:"+(st.belum/a.n*100)+"%\"></span>":"")+
+      "</div>"+
+      "<div class=\"legend\"><span><i class=\"g\"></i>"+st.tuntas+" siswa tuntas</span><span><i class=\"b\"></i>"+st.belum+" siswa belum tuntas</span></div>"+
+      "<p class=\"tiny\">KKTP "+fmt(a.kktp,0)+". Siswa tuntas bila nilai mencapai KKTP atau lebih.</p>"+
+    "</div>"+
+    "<dl class=\"stats\">"+
+      "<dt>Jumlah siswa</dt><dd>"+a.n+"</dd>"+
+      "<dt>Rata-rata nilai</dt><dd>"+fmt(st.mean,1)+"</dd>"+
+      "<dt>Median</dt><dd>"+fmt(st.median,1)+"</dd>"+
+      "<dt>Nilai tertinggi</dt><dd>"+fmt(st.max,1)+"</dd>"+
+      "<dt>Nilai terendah</dt><dd>"+fmt(st.min,1)+"</dd>"+
+      "<dt>Simpangan baku</dt><dd>"+fmt(st.sd,1)+"</dd>"+
+    "</dl>";
+
+  drawHist(a);
+
+  $("itemHelp").textContent=a.groupK
+    ?"Daya pembeda dihitung dari "+a.groupK+" siswa teratas dan "+a.groupK+" siswa terbawah (27% dari "+a.n+" siswa)."
+    :"Daya pembeda baru dihitung bila siswa minimal 6 orang.";
+  $("tbodyItems").innerHTML=a.items.map(function(it){
+    var kp=katP(it.P),kd=katD(it.D);
+    return "<tr><td><strong>Soal "+it.no+"</strong></td>"+
+      "<td class=\"mono\">"+fmt(it.mean,bs?2:1)+(bs?"":" / "+fmt(it.max,1))+"</td>"+
+      "<td><span class=\"pbar\"><span class=\"track\"><span class=\"fill "+kp.c+"\" style=\"display:block;width:"+Math.round(it.P*100)+"%\"></span></span><span class=\"mono\">"+fmt(it.P,2)+"</span></span></td>"+
+      "<td><span class=\"pill "+kp.c+"\">"+kp.t+"</span></td>"+
+      "<td class=\"mono\">"+fmt(it.D,2)+"</td>"+
+      "<td><span class=\"pill "+kd.c+"\">"+kd.t+"</span></td>"+
+      "<td class=\"wrapcell\">"+tindak(it)+"</td></tr>";
+  }).join("");
+
+  renderRecs(a);
+  renderSiswa(a);
+}
+
+function drawHist(a){
+  var W=640,H=272,l=36,r=12,t=34,b=34,iw=W-l-r,ih=H-t-b,bw=iw/10;
+  var ymax=Math.max.apply(null,a.bins.map(function(x){return x.total}).concat([1]));
+  var step=ymax<=6?1:(ymax<=12?2:Math.ceil(ymax/5));
+  var top=Math.ceil(ymax/step)*step;
+  function y(v){return t+ih-(v/top)*ih}
+  var s="<svg viewBox=\"0 0 "+W+" "+H+"\" role=\"img\" aria-label=\"Histogram sebaran nilai. "+a.stats.tuntas+" siswa tuntas dan "+a.stats.belum+" belum tuntas dari "+a.n+" siswa.\">";
+  for(var v=0;v<=top;v+=step){
+    s+="<line class=\""+(v===0?"base":"grid-l")+"\" x1=\""+l+"\" x2=\""+(W-r)+"\" y1=\""+y(v)+"\" y2=\""+y(v)+"\"/>";
+    s+="<text x=\""+(l-8)+"\" y=\""+(y(v)+4)+"\" text-anchor=\"end\">"+v+"</text>";
+  }
+  for(var e=0;e<=10;e++)s+="<text x=\""+(l+e*bw)+"\" y=\""+(H-12)+"\" text-anchor=\"middle\">"+(e*10)+"</text>";
+  a.bins.forEach(function(bin,bi){
+    var bx=l+bi*bw+bw*0.14,wd=bw*0.72;
+    var hT=(bin.tuntas/top)*ih,hB=(bin.belum/top)*ih;
+    var yb=t+ih;
+    var segs=[];
+    if(bin.tuntas)segs.push({h:hT,c:"b-good"});
+    if(bin.belum)segs.push({h:hB,c:"b-bad"});
+    var cursor=yb;
+    segs.forEach(function(sg,k){
+      var gap=k>0?2:0;
+      var hh=Math.max(0,sg.h-gap),yy=cursor-sg.h;
+      var isTop=k===segs.length-1;
+      if(hh<=0)return;
+      if(isTop){
+        var rr=Math.min(3,hh,wd/2);
+        s+="<path class=\""+sg.c+"\" d=\"M"+bx+","+(yy+hh)+" L"+bx+","+(yy+rr)+" Q"+bx+","+yy+" "+(bx+rr)+","+yy+" L"+(bx+wd-rr)+","+yy+" Q"+(bx+wd)+","+yy+" "+(bx+wd)+","+(yy+rr)+" L"+(bx+wd)+","+(yy+hh)+" Z\"/>";
+      }else{
+        s+="<rect class=\""+sg.c+"\" x=\""+bx+"\" y=\""+yy+"\" width=\""+wd+"\" height=\""+hh+"\" fill=\"currentColor\"/>";
+      }
+      cursor-=sg.h;
+    });
+    if(bin.total)s+="<text class=\"cnt\" x=\""+(bx+wd/2)+"\" y=\""+(y(bin.total)-6)+"\" text-anchor=\"middle\">"+bin.total+"</text>";
+  });
+  var kx=l+(Math.max(0,Math.min(100,a.kktp))/100)*iw;
+  s+="<line class=\"kkline\" x1=\""+kx+"\" x2=\""+kx+"\" y1=\"22\" y2=\""+(t+ih)+"\"/>";
+  s+="<text class=\"kk\" x=\""+kx+"\" y=\"14\" text-anchor=\""+(kx>W-70?"end":(kx<70?"start":"middle"))+"\">KKTP "+fmt(a.kktp,0)+"</text>";
+  a.bins.forEach(function(bin,bi){
+    s+="<rect class=\"hit\" data-b=\""+bi+"\" x=\""+(l+bi*bw)+"\" y=\""+t+"\" width=\""+bw+"\" height=\""+ih+"\" fill=\"transparent\"/>";
+  });
+  s+="</svg><div class=\"tip\" id=\"tip\" hidden></div>";
+  var wrap=$("histWrap");wrap.innerHTML=s;
+  /* fill currentColor untuk rect segmen bawah */
+  wrap.querySelectorAll("rect.b-good").forEach(function(el){el.style.fill="var(--good)"});
+  wrap.querySelectorAll("rect.b-bad").forEach(function(el){el.style.fill="var(--bad)"});
+  var tip=$("tip");
+  function show(ev){
+    var bin=a.bins[+ev.currentTarget.getAttribute("data-b")];
+    tip.innerHTML="<strong>Nilai "+bin.lo+" sampai "+bin.hi+"</strong><br>"+bin.total+" siswa"+(bin.total?" ("+bin.tuntas+" tuntas, "+bin.belum+" belum)":"");
+    tip.hidden=false;
+    var rc=wrap.getBoundingClientRect();
+    var px=ev.clientX-rc.left+wrap.scrollLeft,py=ev.clientY-rc.top;
+    tip.style.left=Math.max(0,Math.min(px+12,wrap.scrollWidth-tip.offsetWidth-4))+"px";
+    tip.style.top=Math.max(0,py-tip.offsetHeight-10)+"px";
+  }
+  wrap.querySelectorAll(".hit").forEach(function(el){
+    el.addEventListener("pointermove",show);
+    el.addEventListener("pointerdown",show);
+    el.addEventListener("pointerleave",function(){tip.hidden=true});
+  });
+  var th="<thead><tr><th>Rentang nilai</th><th>Tuntas</th><th>Belum tuntas</th><th>Jumlah</th></tr></thead><tbody>";
+  a.bins.forEach(function(bin){th+="<tr><td>"+bin.lo+" sampai "+bin.hi+"</td><td class=\"mono\">"+bin.tuntas+"</td><td class=\"mono\">"+bin.belum+"</td><td class=\"mono\">"+bin.total+"</td></tr>"});
+  $("histTable").innerHTML=th+"</tbody>";
+}
+
+function renderRecs(a){
+  var out=[],st=a.stats;
+  var belum=a.rows.filter(function(r){return !r.tuntas});
+  if(st.pct>=85)out.push(["good","Baik","<strong>Ketuntasan klasikal "+fmt(st.pct,1)+"%.</strong> Pembelajaran dapat dilanjutkan ke materi berikutnya."]);
+  else if(st.pct>=60)out.push(["warn","Perlu remedial","<strong>Ketuntasan klasikal "+fmt(st.pct,1)+"%.</strong> Beri remedial bagi "+belum.length+" siswa yang belum tuntas dan pengayaan bagi siswa yang sudah tuntas."]);
+  else out.push(["bad","Perlu tindakan","<strong>Ketuntasan klasikal "+fmt(st.pct,1)+"%.</strong> Ulangi pembahasan materi untuk seluruh kelas sebelum lanjut ke materi berikutnya."]);
+
+  if(belum.length){
+    var names=belum.slice(0,15).map(function(r){return esc(r.nama||"Siswa "+(r.i+1))}).join(", ");
+    if(belum.length>15)names+=" dan "+(belum.length-15)+" lainnya";
+    out.push(["bad","Remedial","<strong>"+belum.length+" siswa belum mencapai KKTP:</strong> "+names+". Kelompokkan menurut soal yang sama-sama keliru (lihat rincian per siswa)."]);
+  }
+  var reteach=a.items.filter(function(it){return it.P<0.30&&(it.D===null||it.D>=0.20)}).map(function(it){return it.no});
+  if(reteach.length)out.push(["warn","Ajar ulang","<strong>Soal "+reteach.join(", ")+"</strong> dijawab benar penuh oleh sedikit siswa meski soalnya membedakan dengan baik. Bahas ulang materinya."]);
+  var revise=a.items.filter(function(it){return it.D!==null&&it.D<0.20}).map(function(it){return it.no});
+  if(revise.length)out.push(["bad","Revisi soal","<strong>Soal "+revise.join(", ")+"</strong> memiliki daya pembeda rendah atau negatif. Periksa kunci jawaban dan redaksinya sebelum dipakai lagi."]);
+  var top=a.rows.filter(function(r){return r.nilai>=90}).length;
+  if(top)out.push(["info","Pengayaan","<strong>"+top+" siswa bernilai 90 atau lebih.</strong> Beri tugas pengayaan atau libatkan sebagai tutor sebaya."]);
+  $("recs").innerHTML=out.map(function(o){return "<li><span class=\"pill "+o[0]+"\">"+o[1]+"</span><span>"+o[2]+"</span></li>"}).join("");
+}
+
+function renderSiswa(a){
+  var mode=$("sortSel").value,bs=S.mode==="bs";
+  var rows=a.rows.slice();
+  if(mode==="desc")rows.sort(function(x,y){return y.nilai-x.nilai});
+  else if(mode==="asc")rows.sort(function(x,y){return x.nilai-y.nilai});
+  else if(mode==="nama")rows.sort(function(x,y){return String(x.nama).localeCompare(String(y.nama),"id")});
+  $("thSkor").textContent=bs?"Benar":"Skor";
+  $("tbodySiswa").innerHTML=rows.map(function(r,k){
+    var miss=[];S.soal.forEach(function(q,j){if(r.sk[j]<q.max)miss.push(j+1)});
+    return "<tr><td>"+(k+1)+"</td><td class=\"left\">"+esc(r.nama||"Siswa "+(r.i+1))+"</td>"+
+      "<td class=\"mono\">"+fmt(r.total,bs?0:1)+" / "+fmt(a.maxTotal,bs?0:1)+"</td>"+
+      "<td class=\"mono\"><strong>"+fmt(r.nilai,bs?0:1)+"</strong></td>"+
+      "<td><span class=\"pill "+(r.tuntas?"good":"bad")+"\">"+(r.tuntas?"Tuntas":"Belum tuntas")+"</span></td>"+
+      "<td class=\"wrapcell\">"+nomorList(miss,14)+"</td></tr>";
+  }).join("");
+}
+$("sortSel").addEventListener("change",function(){renderSiswa(calcFor(S))});
+
+/* ---------- salin ---------- */
+function flashMsg(t){var m=$("copyMsg");m.textContent=t;setTimeout(function(){if(m.textContent===t)m.textContent=""},3500)}
+function copyText(text){
+  $("copyFallback").hidden=true;
+  function fallback(){
+    var ta=$("copyArea");ta.value=text;$("copyFallback").hidden=false;ta.focus();ta.select();
+    flashMsg("Penyalinan otomatis tidak tersedia. Teks sudah dipilih, tekan Ctrl+C.");
+  }
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){flashMsg("Tersalin. Tempel ke Excel atau Google Sheets.")},fallback);
+    }else fallback();
+  }catch(e){fallback()}
+}
+function tsvCell(s){return String(s).replace(/[\t\r\n]+/g," ")}
+$("btnCopySiswa").addEventListener("click",function(){
+  var a=calcFor(S),bs=S.mode==="bs";
+  var lines=[["No","Nama siswa",bs?"Benar":"Skor","Skor maksimum","Nilai","Status","Soal belum benar penuh"].join("\t")];
+  a.rows.forEach(function(r,k){
+    var miss=[];S.soal.forEach(function(q,j){if(r.sk[j]<q.max)miss.push(j+1)});
+    lines.push([k+1,tsvCell(r.nama||"Siswa "+(r.i+1)),r.total,a.maxTotal,r.nilai,r.tuntas?"Tuntas":"Belum tuntas",miss.join(" ")].join("\t"));
+  });
+  copyText(lines.join("\n"));
+});
+$("btnCopyItems").addEventListener("click",function(){
+  var a=calcFor(S);
+  var lines=[["Soal","Rata-rata skor","Skor maksimum","P","Kategori P","D","Kategori D","Tindak lanjut"].join("\t")];
+  a.items.forEach(function(it){
+    lines.push([it.no,fmt(it.mean,2),it.max,fmt(it.P,2),katP(it.P).t,fmt(it.D,2),katD(it.D).t,tindak(it)].join("\t"));
+  });
+  copyText(lines.join("\n"));
+});
+
+/* ---------- tab ---------- */
+function switchTab(name){
+  current=name;
+  ["setup","input","hasil"].forEach(function(t){
+    var on=t===name;
+    $("p-"+t).hidden=!on;
+    $("t-"+t).setAttribute("aria-selected",String(on));
+    $("t-"+t).tabIndex=on?0:-1;
+  });
+  if(name==="hasil")renderResults();
+  if(name==="input")renderInput();
+}
+document.querySelectorAll(".tab").forEach(function(b){
+  b.addEventListener("click",function(){switchTab(b.dataset.tab)});
+  b.addEventListener("keydown",function(e){
+    var order=["setup","input","hasil"],i=order.indexOf(b.dataset.tab);
+    if(e.key==="ArrowRight"||e.key==="ArrowLeft"){
+      var n=order[(i+(e.key==="ArrowRight"?1:2))%3];switchTab(n);$("t-"+n).focus();
+    }
+  });
+});
+document.querySelectorAll("[data-go]").forEach(function(b){
+  b.addEventListener("click",function(){switchTab(b.dataset.go);window.scrollTo(0,0)});
+});
+
+/* ---------- init ---------- */
+S=load();
+var startTab="input";
+if(!S){S=sampleState();startTab="hasil"}
+else if(S.sample)startTab="hasil";
+fillSetup();renderInput();
+switchTab(startTab);
+})();
+</script>
+
+</body></html>
